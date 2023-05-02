@@ -183,7 +183,7 @@ static dispatch_queue_t serialQueue = nil;
             result(FlutterMethodNotImplemented);
         }
     } @catch (id exception) {
-        NSLog(@"Error in handleMethodCall");
+        //NSLog(@"Error in handleMethodCall");
         FlutterError *flutterError = [FlutterError errorWithCode:@"error" message:@"Error in handleMethodCall" details:nil];
         result(flutterError);
     }
@@ -463,19 +463,14 @@ static dispatch_queue_t serialQueue = nil;
 
 - (AudioSource *)decodeAudioSource:(NSDictionary *)data {
     NSString *type = data[@"type"];
-    NSLog(@"decodeAudioSource: ");
-
     if ([@"progressive" isEqualToString:type]) {
         return [[UriAudioSource alloc] initWithId:data[@"id"] uri:data[@"uri"] loadControl:_loadControl];
     } else if ([@"dash" isEqualToString:type]) {
         return [[UriAudioSource alloc] initWithId:data[@"id"] uri:data[@"uri"] loadControl:_loadControl];
     } else if ([@"hls" isEqualToString:type]) {
-            NSLog(@"decodeAudioSource: hls %@", data[@"uri"]);
-            NSURLComponents *components = [NSURLComponents componentsWithURL:[NSURL URLWithString:data[@"uri"]] resolvingAgainstBaseURL:YES];
-            components.scheme = customPlaylistScheme;
-            NSLog(@"decodeAudioSource: newUrl: %@", components.URL.absoluteString);
+        NSURLComponents *components = [NSURLComponents componentsWithURL:[NSURL URLWithString:data[@"uri"]] resolvingAgainstBaseURL:YES];
+        components.scheme = customPlaylistScheme;
         NSURL *_url = [NSURL URLWithString: components.URL.absoluteString];
-
         AVURLAsset * _asset = [AVURLAsset URLAssetWithURL:_url options:nil];
         currentResourceLoader = [_asset resourceLoader];
         [[_asset resourceLoader] setDelegate:(id)self queue:serialQueue];
