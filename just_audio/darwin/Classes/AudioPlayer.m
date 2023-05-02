@@ -477,6 +477,7 @@ static dispatch_queue_t serialQueue = nil;
         NSURL *_url = [NSURL URLWithString: components.URL.absoluteString];
 
         AVURLAsset * _asset = [AVURLAsset URLAssetWithURL:_url options:nil];
+        currentResourceLoader = [_asset resourceLoader];
         [[_asset resourceLoader] setDelegate:(id)self queue:serialQueue];
         return [[UriAudioSource alloc] initWithIdAsset:data[@"id"] uri:components.URL.absoluteString loadControl:_loadControl asset:_asset];
     } else if ([@"concatenating" isEqualToString:type]) {
@@ -600,9 +601,9 @@ static dispatch_queue_t serialQueue = nil;
 - (BOOL)resourceLoader:(AVAssetResourceLoader *)resourceLoader    shouldWaitForLoadingOfRequestedResource:(AVAssetResourceLoadingRequest *)loadingRequest{
      NSLog(@"loadingRequest.URL: %@", [[loadingRequest request] URL]);
     NSString* scheme = [[[loadingRequest request] URL] scheme];
-//    if (currentResourceLoader != resourceLoader) {
-//        return NO;
-//    }
+    if (currentResourceLoader != resourceLoader) {
+        return NO;
+    }
     
     if ([self isRedirectSchemeValid:scheme]) {
         return [self handleRedirectRequest:loadingRequest];
@@ -780,6 +781,7 @@ static dispatch_queue_t serialQueue = nil;
 }
 
 - (void)load:(NSDictionary *)source initialPosition:(CMTime)initialPosition initialIndex:(NSNumber *)initialIndex result:(FlutterResult)result {
+    currentResourceLoader = nil;
     if (_playing) {
         [_player pause];
     }
