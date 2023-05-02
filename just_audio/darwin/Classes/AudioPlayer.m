@@ -915,16 +915,16 @@ static dispatch_queue_t serialQueue = nil;
 
 - (void)onItemStalled:(NSNotification *)notification {
     //IndexedPlayerItem *playerItem = (IndexedPlayerItem *)notification.object;
-    NSLog(@"onItemStalled");
+    //NSLog(@"onItemStalled");
 }
 
 - (void)onFailToComplete:(NSNotification *)notification {
     //IndexedPlayerItem *playerItem = (IndexedPlayerItem *)notification.object;
-    NSLog(@"onFailToComplete");
+    //NSLog(@"onFailToComplete");
 }
 
 - (void)onComplete:(NSNotification *)notification {
-    NSLog(@"onComplete");
+    //NSLog(@"onComplete");
 
     IndexedPlayerItem *endedPlayerItem = (IndexedPlayerItem *)notification.object;
     IndexedAudioSource *endedSource = endedPlayerItem.audioSource;
@@ -953,8 +953,7 @@ static dispatch_queue_t serialQueue = nil;
                       ofObject:(id)object
                         change:(NSDictionary<NSString *,id> *)change
                        context:(void *)context {
-                NSLog(@"observeValueForKeyPath %@ %@", keyPath, change);
-
+                
     if ([keyPath isEqualToString:@"status"]) {
         IndexedPlayerItem *playerItem = (IndexedPlayerItem *)object;
         AVPlayerItemStatus status = AVPlayerItemStatusUnknown;
@@ -1007,7 +1006,7 @@ static dispatch_queue_t serialQueue = nil;
                 break;
             }
             case AVPlayerItemStatusFailed: {
-                NSLog(@"AVPlayerItemStatusFailed");
+                //NSLog(@"AVPlayerItemStatusFailed");
                 [self sendErrorForItem:playerItem];
                 break;
             }
