@@ -3203,7 +3203,8 @@ _ProxyHandler _proxyHandlerForUri(
           line = line.replaceAll(RegExp(r'#.*$'), '').trim();
           if (line.isEmpty) continue;
           try {
-            final rawNestedUri = Uri.parse(line.replaceAll(' ', '+'));
+            final rawNestedUri =
+                Uri.parse(Platform.isIOS ? line.replaceAll(' ', '+') : line);
             if (rawNestedUri.hasScheme) {
               // Don't propagate headers
               server.addUriAudioSource(AudioSource.uri(rawNestedUri));
