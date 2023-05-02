@@ -74,7 +74,7 @@ static dispatch_queue_t serialQueue = nil;
     _dataEventChannel = [[BetterEventChannel alloc]
         initWithName:[NSMutableString stringWithFormat:@"com.ryanheise.just_audio.data.%@", _playerId]
            messenger:[registrar messenger]];
-    serialQueue = dispatch_queue_create("com.suamusica.player.queue", DISPATCH_QUEUE_SERIAL);
+    serialQueue = dispatch_queue_create("com.ryanheise.just_audio.queue", DISPATCH_QUEUE_SERIAL);
 
     _index = 0;
     _processingState = none;
