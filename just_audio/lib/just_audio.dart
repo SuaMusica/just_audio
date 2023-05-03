@@ -3172,13 +3172,11 @@ _ProxyHandler _proxyHandlerForUri(
           .forEach((name, value) => requestHeaders[name] = value.join(', '));
       final originRequest =
           await _getUrl(client, redirectedUri ?? uri, headers: requestHeaders);
-      print(redirectedUri ?? uri);
       host = originRequest.headers.value(HttpHeaders.hostHeader);
       final originResponse = await originRequest.close();
       if (originResponse.redirects.isNotEmpty) {
         redirectedUri = originResponse.redirects.last.location;
       }
-      // print(originResponse.headers);
       request.response.headers.clear();
       originResponse.headers.forEach((name, value) {
         final filteredValue = value

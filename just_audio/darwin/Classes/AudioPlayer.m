@@ -56,8 +56,8 @@ static NSString *extInfo = @"#EXTINF:";
 static int redirectErrorCode = 302;
 static int badRequestErrorCode = 400;
 
-AVAssetResourceLoadingRequest* currentResourceLoadingRequest = nil;
-AVAssetResourceLoader* currentResourceLoader = nil;
+//AVAssetResourceLoadingRequest* currentResourceLoadingRequest = nil;
+//AVAssetResourceLoader* currentResourceLoader = nil;
 static dispatch_queue_t serialQueue = nil;
 
 - (instancetype)initWithRegistrar:(NSObject<FlutterPluginRegistrar> *)registrar playerId:(NSString*)idParam loadConfiguration:(NSDictionary *)loadConfiguration {
@@ -66,16 +66,16 @@ static dispatch_queue_t serialQueue = nil;
     _registrar = registrar;
     _playerId = idParam;
     _methodChannel =
-        [FlutterMethodChannel methodChannelWithName:[NSMutableString stringWithFormat:@"com.ryanheise.just_audio.methods.%@", _playerId]
-                                    binaryMessenger:[registrar messenger]];
+    [FlutterMethodChannel methodChannelWithName:[NSMutableString stringWithFormat:@"com.ryanheise.just_audio.methods.%@", _playerId]
+                                binaryMessenger:[registrar messenger]];
     _eventChannel = [[BetterEventChannel alloc]
-        initWithName:[NSMutableString stringWithFormat:@"com.ryanheise.just_audio.events.%@", _playerId]
-           messenger:[registrar messenger]];
+                     initWithName:[NSMutableString stringWithFormat:@"com.ryanheise.just_audio.events.%@", _playerId]
+                     messenger:[registrar messenger]];
     _dataEventChannel = [[BetterEventChannel alloc]
-        initWithName:[NSMutableString stringWithFormat:@"com.ryanheise.just_audio.data.%@", _playerId]
-           messenger:[registrar messenger]];
+                         initWithName:[NSMutableString stringWithFormat:@"com.ryanheise.just_audio.data.%@", _playerId]
+                         messenger:[registrar messenger]];
     serialQueue = dispatch_queue_create("com.ryanheise.just_audio.queue", DISPATCH_QUEUE_SERIAL);
-
+    
     _index = 0;
     _processingState = none;
     _loopMode = loopOff;
@@ -126,7 +126,6 @@ static dispatch_queue_t serialQueue = nil;
 
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
     @try {
-        NSLog(@"handleMethodCall %@", call.method);
         NSDictionary *request = (NSDictionary *)call.arguments;
         if ([@"load" isEqualToString:call.method]) {
             CMTime initialPosition = request[@"initialPosition"] == (id)[NSNull null] ? kCMTimeInvalid : CMTimeMake([request[@"initialPosition"] longLongValue], 1000000);
@@ -336,13 +335,13 @@ static dispatch_queue_t serialQueue = nil;
 
 - (void)broadcastPlaybackEvent {
     [_eventChannel sendEvent:@{
-            @"processingState": @(_processingState),
-            @"updatePosition": @((long long)1000 * _updatePosition),
-            @"updateTime": @(_updateTime),
-            @"bufferedPosition": @((long long)1000 * [self getBufferedPosition]),
-            @"icyMetadata": _icyMetadata,
-            @"duration": @([self getDurationMicroseconds]),
-            @"currentIndex": @(_index),
+        @"processingState": @(_processingState),
+        @"updatePosition": @((long long)1000 * _updatePosition),
+        @"updateTime": @(_updateTime),
+        @"bufferedPosition": @((long long)1000 * [self getBufferedPosition]),
+        @"icyMetadata": _icyMetadata,
+        @"duration": @([self getDurationMicroseconds]),
+        @"currentIndex": @(_index),
     }];
 }
 
@@ -413,7 +412,7 @@ static dispatch_queue_t serialQueue = nil;
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(onFailToComplete:) name:AVPlayerItemFailedToPlayToEndTimeNotification object:playerItem];
     // Get notified when playback stalls (currently unused)
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(onItemStalled:) name:AVPlayerItemPlaybackStalledNotification object:playerItem];
-
+    
     AVPlayerItemMetadataOutput *metadataOutput = [[AVPlayerItemMetadataOutput alloc] initWithIdentifiers:nil];
     [metadataOutput setDelegate:self queue:dispatch_get_main_queue()];
     // Since the delegate is stored as a weak reference,
@@ -471,8 +470,41 @@ static dispatch_queue_t serialQueue = nil;
         NSURLComponents *components = [NSURLComponents componentsWithURL:[NSURL URLWithString:data[@"uri"]] resolvingAgainstBaseURL:YES];
         components.scheme = customPlaylistScheme;
         NSURL *_url = [NSURL URLWithString: components.URL.absoluteString];
-        AVURLAsset * _asset = [AVURLAsset URLAssetWithURL:_url options:nil];
-        currentResourceLoader = [_asset resourceLoader];
+        NSHTTPCookieStorage *cookiesStorage = [NSHTTPCookieStorage sharedHTTPCookieStorage];
+        @try {
+            NSURL *_urlWildcard = [NSURL URLWithString: @"*.suamusica.com.br/*"];
+            [cookiesStorage removeCookiesSinceDate:[NSDate dateWithTimeIntervalSince1970:0]];
+            NSString *cookie = data[@"child"][@"headers"][@"Cookie"];
+            if(cookie == nil){
+                cookie = data[@"headers"][@"Cookie"];
+            }
+            if (cookie != nil) {
+                NSArray *cookiesItems = [cookie componentsSeparatedByString:@";"];
+                for (NSString *cookieItem in cookiesItems) {                    
+                    NSArray *keyValue = [cookieItem componentsSeparatedByString:@"="];
+                    if ([keyValue count] == 2) {
+                        NSString *key = [keyValue objectAtIndex:0];
+                        NSString *value = [keyValue objectAtIndex:1];
+                        NSHTTPCookie *httpCookie = [ [NSHTTPCookie cookiesWithResponseHeaderFields:@{@"Set-Cookie": [NSString stringWithFormat:@"%@=%@", key, value]} forURL:_urlWildcard] objectAtIndex:0];
+                        
+                        @try {
+                            [cookiesStorage setCookie:httpCookie];
+                        }
+                        @catch (NSException *exception) {
+                            NSLog(@"Cookie storage exception: %@", exception.reason);
+                        }
+                    }
+                }
+                
+            }
+            
+        }
+        @catch (NSException *exception) {
+            NSLog(@"Cookie exception: %@", exception.reason);
+        }
+        
+        AVURLAsset * _asset = [AVURLAsset URLAssetWithURL:_url options:@{AVURLAssetHTTPCookiesKey : [cookiesStorage cookies] }];
+//        currentResourceLoader = [_asset resourceLoader];
         [[_asset resourceLoader] setDelegate:(id)self queue:serialQueue];
         return [[UriAudioSource alloc] initWithIdAsset:data[@"id"] uri:components.URL.absoluteString loadControl:_loadControl asset:_asset];
     } else if ([@"concatenating" isEqualToString:type]) {
@@ -499,12 +531,12 @@ static dispatch_queue_t serialQueue = nil;
 - (void)enqueueFrom:(int)index {
     //NSLog(@"### enqueueFrom:%d", index);
     _index = index;
-
+    
     // Update the queue while keeping the currently playing item untouched.
-
+    
     /* NSLog(@"before reorder: _player.items.count: ", _player.items.count); */
     /* [self dumpQueue]; */
-
+    
     // First, remove all _player items except for the currently playing one (if any).
     IndexedPlayerItem *oldItem = (IndexedPlayerItem *)_player.currentItem;
     IndexedPlayerItem *existingItem = nil;
@@ -531,10 +563,10 @@ static dispatch_queue_t serialQueue = nil;
         //NSLog(@"removing old item %d", [self indexForItem:oldItem]);
         [_player removeItem:oldItem];
     }
-
+    
     /* NSLog(@"inter order: _player.items.count: ", _player.items.count); */
     /* [self dumpQueue]; */
-
+    
     // Regenerate queue
     if (!existingItem || _loopMode != loopOne) {
         BOOL include = NO;
@@ -551,7 +583,7 @@ static dispatch_queue_t serialQueue = nil;
             }
         }
     }
-
+    
     // Add next loop item if we're looping
     if (_order.count > 0) {
         if (_loopMode == loopAll) {
@@ -571,10 +603,10 @@ static dispatch_queue_t serialQueue = nil;
             [_player insertItem:_indexedAudioSources[_index].playerItem2 afterItem:nil];
         }
     }
-
+    
     /* NSLog(@"after reorder: _player.items.count: ", _player.items.count); */
     /* [self dumpQueue]; */
-
+    
     if (_processingState != loading && oldItem != newItem) {
         // || !_player.currentItem.playbackLikelyToKeepUp;
         if (_player.currentItem.playbackBufferEmpty) {
@@ -584,7 +616,7 @@ static dispatch_queue_t serialQueue = nil;
         }
         [self updatePosition];
     }
-
+    
     [self updateEndAction];
 }
 
@@ -594,11 +626,11 @@ static dispatch_queue_t serialQueue = nil;
 }
 
 - (BOOL)resourceLoader:(AVAssetResourceLoader *)resourceLoader    shouldWaitForLoadingOfRequestedResource:(AVAssetResourceLoadingRequest *)loadingRequest{
-     NSLog(@"loadingRequest.URL: %@", [[loadingRequest request] URL]);
+    NSLog(@"loadingRequest.URL: %@", [[loadingRequest request] URL]);
     NSString* scheme = [[[loadingRequest request] URL] scheme];
-    if (currentResourceLoader != resourceLoader) {
-        return NO;
-    }
+//    if (currentResourceLoader != resourceLoader) {
+//        return NO;
+//    }
     
     if ([self isRedirectSchemeValid:scheme]) {
         return [self handleRedirectRequest:loadingRequest];
@@ -623,8 +655,8 @@ static dispatch_queue_t serialQueue = nil;
  */
 - (BOOL) handleRedirectRequest:(AVAssetResourceLoadingRequest *)loadingRequest
 {
-            NSLog(@"handleRedirectRequest");
-
+    NSLog(@"handleRedirectRequest");
+    
     NSURLRequest *redirect = nil;
     [self setCurrentResourceLoadingRequest:loadingRequest];
     
@@ -671,8 +703,8 @@ static dispatch_queue_t serialQueue = nil;
  */
 - (BOOL) handleCustomPlaylistRequest:(AVAssetResourceLoadingRequest *)loadingRequest
 {
-                NSLog(@"handleCustomPlaylistRequest");
-
+    NSLog(@"handleCustomPlaylistRequest");
+    
     [self setCurrentResourceLoadingRequest:loadingRequest];
     NSString* url = [[[loadingRequest request] URL] absoluteString];
     __block NSString *requestUrl = [self replaceScheme:customPlaylistScheme newScheme:httpsScheme fromUrl:url];
@@ -733,7 +765,7 @@ static dispatch_queue_t serialQueue = nil;
     }] resume];
     
     dispatch_semaphore_wait(sema, DISPATCH_TIME_FOREVER);
-
+    
     return YES;
 }
 
@@ -754,10 +786,10 @@ static dispatch_queue_t serialQueue = nil;
 }
 
 - (void)resourceLoader:(AVAssetResourceLoader *)resourceLoader didCancelLoadingRequest:(AVAssetResourceLoadingRequest *)loadingRequest {
-     NSLog(@"resourceLoader");
-    if (currentResourceLoadingRequest != nil && currentResourceLoadingRequest.request == loadingRequest.request) {
-        [self setCurrentResourceLoadingRequest:nil];
-    }
+    NSLog(@"resourceLoader");
+//    if (currentResourceLoadingRequest != nil && currentResourceLoadingRequest.request == loadingRequest.request) {
+//        [self setCurrentResourceLoadingRequest:nil];
+//    }
 }
 
 - (BOOL) isCustomPlaylistSchemeValid:(NSString *)scheme
@@ -766,17 +798,16 @@ static dispatch_queue_t serialQueue = nil;
 }
 
 -(void)setCurrentResourceLoadingRequest: (AVAssetResourceLoadingRequest*) resourceLoadingRequest {
-    NSLog(@"===> set.resourceLoading: %@", resourceLoadingRequest);
-    if (currentResourceLoadingRequest != nil) {
-        if (!currentResourceLoadingRequest.cancelled && !currentResourceLoadingRequest.finished) {
-            [currentResourceLoadingRequest finishLoading];
-        }
-    }
-    currentResourceLoadingRequest = resourceLoadingRequest;
+//    if (currentResourceLoadingRequest != nil) {
+//        if (!currentResourceLoadingRequest.cancelled && !currentResourceLoadingRequest.finished) {
+//            [currentResourceLoadingRequest finishLoading];
+//        }
+//    }
+//    currentResourceLoadingRequest = resourceLoadingRequest;
 }
 
 - (void)load:(NSDictionary *)source initialPosition:(CMTime)initialPosition initialIndex:(NSNumber *)initialIndex result:(FlutterResult)result {
-    currentResourceLoader = nil;
+//    currentResourceLoader = nil;
     if (_playing) {
         [_player pause];
     }
@@ -807,16 +838,16 @@ static dispatch_queue_t serialQueue = nil;
         }
         NSString *type = source[@"child"][@"type"];
         NSString *uri = nil;
-
+        
         if ([@"progressive" isEqualToString:type] || [@"dash" isEqualToString:type] || [@"hls" isEqualToString:type]) {
             uri = source[@"child"][@"uri"];
         }
         if (child && uri && [child.uri isEqualToString:uri]) {
             ClippingAudioSource *clipper =
-                [[ClippingAudioSource alloc] initWithId:source[@"id"]
-                                            audioSource:child
-                                                  start:source[@"start"]
-                                                    end:source[@"end"]];
+            [[ClippingAudioSource alloc] initWithId:source[@"id"]
+                                        audioSource:child
+                                              start:source[@"start"]
+                                                end:source[@"end"]];
             clipper.playerItem.audioSource = clipper;
             if (clipper.playerItem2) {
                 clipper.playerItem2.audioSource = clipper;
@@ -862,8 +893,8 @@ static dispatch_queue_t serialQueue = nil;
             _timeObserver = [_player addPeriodicTimeObserverForInterval:CMTimeMake(200, 1000)
                                                                   queue:nil
                                                              usingBlock:^(CMTime time) {
-                                                                 [weakSelf checkForDiscontinuity];
-                                                             }
+                [weakSelf checkForDiscontinuity];
+            }
             ];
         }
     }
@@ -873,9 +904,9 @@ static dispatch_queue_t serialQueue = nil;
     for (int i = 0; i < [_indexedAudioSources count]; i++) {
         [_indexedAudioSources[i] attach:_player initialPos:(i == _index ? initialPosition : kCMTimeInvalid)];
     }
-
+    
     if (_indexedAudioSources.count == 0 || !_player.currentItem ||
-            _player.currentItem.status == AVPlayerItemStatusReadyToPlay) {
+        _player.currentItem.status == AVPlayerItemStatusReadyToPlay) {
         _processingState = ready;
         _loadResult(@{@"duration": @([self getDurationMicroseconds])});
         _loadResult = nil;
@@ -920,10 +951,10 @@ static dispatch_queue_t serialQueue = nil;
 
 - (void)onComplete:(NSNotification *)notification {
     //NSLog(@"onComplete");
-
+    
     IndexedPlayerItem *endedPlayerItem = (IndexedPlayerItem *)notification.object;
     IndexedAudioSource *endedSource = endedPlayerItem.audioSource;
-
+    
     if (_loopMode == loopOne) {
         [endedSource seek:kCMTimeZero];
         _justAdvanced = YES;
@@ -948,7 +979,7 @@ static dispatch_queue_t serialQueue = nil;
                       ofObject:(id)object
                         change:(NSDictionary<NSString *,id> *)change
                        context:(void *)context {
-                
+    
     if ([keyPath isEqualToString:@"status"]) {
         IndexedPlayerItem *playerItem = (IndexedPlayerItem *)object;
         AVPlayerItemStatus status = AVPlayerItemStatusUnknown;
@@ -1039,7 +1070,7 @@ static dispatch_queue_t serialQueue = nil;
                 [self broadcastPlaybackEvent];
             }
         }
-    /* } else if ([keyPath isEqualToString:@"playbackLikelyToKeepUp"]) { */
+        /* } else if ([keyPath isEqualToString:@"playbackLikelyToKeepUp"]) { */
     } else if ([keyPath isEqualToString:@"timeControlStatus"]) {
         if (@available(macOS 10.12, iOS 10.0, *)) {
             AVPlayerTimeControlStatus status = AVPlayerTimeControlStatusPaused;
@@ -1131,7 +1162,7 @@ static dispatch_queue_t serialQueue = nil;
         /*         // Already at zero, no need to seek. */
         /*     } */
         /* } */
-
+        
         if (_justAdvanced) {
             IndexedAudioSource *audioSource = playerItem.audioSource;
             if (_loopMode == loopOne) {
@@ -1311,19 +1342,19 @@ static dispatch_queue_t serialQueue = nil;
     //NSLog(@"setShuffleModeEnabled: %d", shuffleModeEnabled);
     _shuffleModeEnabled = shuffleModeEnabled;
     if (!_audioSource) return;
-
+    
     [self updateOrder];
-
+    
     [self enqueueFrom:_index];
 }
 
 - (void)setShuffleOrder:(NSDictionary *)dict {
     if (!_audioSource) return;
-
+    
     [_audioSource decodeShuffleOrder:dict];
-
+    
     [self updateOrder];
-
+    
     [self enqueueFrom:_index];
 }
 
