@@ -11,6 +11,17 @@
 #import <stdlib.h>
 #include <TargetConditionals.h>
 
+// Keep the custom implementation compatible with the upstream Darwin enum
+// names used by the merged public headers.
+#define none psIdle
+#define loading psLoading
+#define buffering psBuffering
+#define ready psReady
+#define completed psCompleted
+#define loopOff lmLoopOff
+#define loopOne lmLoopOne
+#define loopAll lmLoopAll
+
 // TODO: Check for and report invalid state transitions.
 // TODO: Apply Apple's guidance on seeking: https://developer.apple.com/library/archive/qa/qa1820/_index.html
 @implementation AudioPlayer {
@@ -60,7 +71,7 @@ static int badRequestErrorCode = 400;
 //AVAssetResourceLoader* currentResourceLoader = nil;
 static dispatch_queue_t serialQueue = nil;
 
-- (instancetype)initWithRegistrar:(NSObject<FlutterPluginRegistrar> *)registrar playerId:(NSString*)idParam loadConfiguration:(NSDictionary *)loadConfiguration {
+- (instancetype)initWithRegistrar:(NSObject<FlutterPluginRegistrar> *)registrar playerId:(NSString*)idParam loadConfiguration:(NSDictionary *)loadConfiguration useLazyPreparation:(BOOL)useLazyPreparation {
     self = [super init];
     NSAssert(self, @"super init cannot be nil");
     _registrar = registrar;
@@ -510,7 +521,8 @@ static dispatch_queue_t serialQueue = nil;
     } else if ([@"concatenating" isEqualToString:type]) {
         return [[ConcatenatingAudioSource alloc] initWithId:data[@"id"]
                                                audioSources:[self decodeAudioSources:data[@"children"]]
-                                               shuffleOrder:(NSArray<NSNumber *> *)data[@"shuffleOrder"]];
+                                               shuffleOrder:(NSArray<NSNumber *> *)data[@"shuffleOrder"]
+                                                lazyLoading:data[@"useLazyPreparation"]];
     } else if ([@"clipping" isEqualToString:type]) {
         return [[ClippingAudioSource alloc] initWithId:data[@"id"]
                                            audioSource:(UriAudioSource *)[self decodeAudioSource:data[@"child"]]
