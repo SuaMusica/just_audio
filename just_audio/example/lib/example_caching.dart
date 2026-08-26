@@ -5,6 +5,7 @@
 //
 // flutter run -t lib/example_caching.dart
 
+import 'media_kit_stub.dart' if (dart.library.io) 'media_kit_impl.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -12,7 +13,10 @@ import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_example/common.dart';
 import 'package:rxdart/rxdart.dart';
 
-void main() => runApp(const MyApp());
+void main() {
+  initMediaKit(); // Initialise just_audio_media_kit for Linux/Windows.
+  runApp(const MyApp());
+}
 
 class MyApp extends StatefulWidget {
   const MyApp({Key? key}) : super(key: key);
@@ -23,6 +27,7 @@ class MyApp extends StatefulWidget {
 
 class MyAppState extends State<MyApp> with WidgetsBindingObserver {
   final _player = AudioPlayer();
+  // ignore: experimental_member_use
   final _audioSource = LockCachingAudioSource(Uri.parse(
     // Supports range requests:
     "https://dovetail.prxu.org/70/66673fd4-6851-4b90-a762-7c0538c76626/CoryCombs_2021T_VO_Intro.mp3",
@@ -43,8 +48,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
   Future<void> _init() async {
     final session = await AudioSession.instance;
     await session.configure(const AudioSessionConfiguration.speech());
-    _player.playbackEventStream.listen((event) {},
-        onError: (Object e, StackTrace stackTrace) {
+    _player.errorStream.listen((e) {
       print('A stream error occurred: $e');
     });
     try {
@@ -52,7 +56,7 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
       // to the cache file.
       // await _player.setAudioSource(await _audioSource.resolve());
       await _player.setAudioSource(_audioSource);
-    } catch (e) {
+    } on PlayerException catch (e) {
       print("Error loading audio source: $e");
     }
   }

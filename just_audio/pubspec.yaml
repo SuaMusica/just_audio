@@ -1,30 +1,36 @@
 name: just_audio
-description: A feature-rich audio player for Flutter. Loop, clip and concatenate any sound from any source (asset/file/URL/stream) in a variety of audio formats with gapless playback.
-version: 0.9.33
+description: A feature-rich audio player for Flutter. Loop, clip and sequence any sound from any source (asset/file/URL/stream) in gapless playlists.
+version: 0.10.6
 repository: https://github.com/ryanheise/just_audio/tree/minor/just_audio
 issue_tracker: https://github.com/ryanheise/just_audio/issues
+topics:
+  - audio
+  - sound
+  - player
+  - background
 
 environment:
-  sdk: ">=2.12.0 <3.0.0"
-  flutter: ">=1.12.13+hotfix.5"
+  sdk: ^3.6.0
+  flutter: ">=3.27.0"
 
 dependencies:
-  just_audio_platform_interface: ^4.2.0
+  just_audio_platform_interface: ^4.6.0
   # just_audio_platform_interface:
   #   path: ../just_audio_platform_interface
-  just_audio_web: ^0.4.7
+  just_audio_web: ^0.4.15
   # just_audio_web:
   #   path: ../just_audio_web
-  audio_session: ^0.2.3
-  rxdart: ^0.28.0
+  audio_session: ">=0.1.24 <0.3.0"
+  rxdart: '>=0.26.0 <0.29.0'
   path: ^1.8.0
   path_provider: ^2.0.0
   async: ^2.5.0
-  uuid: ^4.3.3
+  uuid: '>=3.0.1 <5.0.0'
   crypto: ^3.0.0
   meta: ^1.18.0
   flutter:
     sdk: flutter
+  synchronized: ^3.2.0
 
 dev_dependencies:
   flutter_test:
@@ -41,7 +47,9 @@ flutter:
         pluginClass: JustAudioPlugin
       ios:
         pluginClass: JustAudioPlugin
+        sharedDarwinSource: true
       macos:
         pluginClass: JustAudioPlugin
+        sharedDarwinSource: true
       web:
         default_package: just_audio_web
