@@ -2,6 +2,7 @@
 
 * Support AGP 9.
 * Migrate Android build files to .kts
+* Fix iOS crash: `-[AudioPlayer dispose:]: unrecognized selector` after incomplete Darwin sync.
 
 ## 0.10.5
 
